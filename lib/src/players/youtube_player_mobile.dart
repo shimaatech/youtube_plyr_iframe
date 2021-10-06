@@ -10,6 +10,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_plyr_iframe/src/enums/youtube_error.dart';
 import 'package:youtube_plyr_iframe/src/helpers/player_fragments.dart';
 import 'package:youtube_plyr_iframe/youtube_plyr_iframe.dart';
@@ -125,7 +126,7 @@ class _MobileYoutubePlayerState extends State<RawYoutubePlayer>
             supportZoom: false,
             disableHorizontalScroll: false,
             disableVerticalScroll: false,
-            useShouldOverrideUrlLoading: false,
+            useShouldOverrideUrlLoading: true,
           ),
           ios: IOSInAppWebViewOptions(
             allowsInlineMediaPlayback: true,
@@ -157,8 +158,20 @@ class _MobileYoutubePlayerState extends State<RawYoutubePlayer>
         },
         onEnterFullscreen: (_) => controller.onEnterFullscreen?.call(),
         onExitFullscreen: (_) => controller.onExitFullscreen?.call(),
+        shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
       ),
     );
+  }
+
+  Future<NavigationActionPolicy?> _shouldOverrideUrlLoading(
+      InAppWebViewController controller,
+      NavigationAction navigationAction) async {
+    final url = navigationAction.request.url.toString();
+    if (url.contains('youtube')) {
+      await launch(url);
+      return NavigationActionPolicy.CANCEL;
+    }
+    return NavigationActionPolicy.ALLOW;
   }
 
   Future<void> _callMethod(String methodName) async {
@@ -283,54 +296,54 @@ class _MobileYoutubePlayerState extends State<RawYoutubePlayer>
   }
 
   String get player => '''
-    <!DOCTYPE html>
-    <body>
-         ${youtubeIFrameTag(controller)}
-        <script>
-            $initPlayerIFrame
-            var player;
-            var timerId;
-            function onYouTubeIframeAPIReady() {
-                player = new YT.Player('player', {
-                    events: {
-                        onReady: function(event) { window.flutter_inappwebview.callHandler('Ready'); },
-                        onStateChange: function(event) { sendPlayerStateChange(event.data); },
-                        onPlaybackQualityChange: function(event) { window.flutter_inappwebview.callHandler('PlaybackQualityChange', event.data); },
-                        onPlaybackRateChange: function(event) { window.flutter_inappwebview.callHandler('PlaybackRateChange', event.data); },
-                        onError: function(error) { window.flutter_inappwebview.callHandler('Errors', error.data); }
-                    },
-                });
-            }
-
-            function sendPlayerStateChange(playerState) {
-                clearTimeout(timerId);
-                window.flutter_inappwebview.callHandler('StateChange', playerState);
-                if (playerState == 1) {
-                    startSendCurrentTimeInterval();
-                    sendVideoData(player);
-                }
-            }
-
-            function sendVideoData(player) {
-                var videoData = {
-                    'duration': player.getDuration(),
-                    'title': player.getVideoData().title,
-                    'author': player.getVideoData().author,
-                    'videoId': player.getVideoData().video_id
-                };
-                window.flutter_inappwebview.callHandler('VideoData', videoData);
-            }
-
-            function startSendCurrentTimeInterval() {
-                timerId = setInterval(function () {
-                    window.flutter_inappwebview.callHandler('VideoTime', player.getCurrentTime(), player.getVideoLoadedFraction());
-                }, 100);
-            }
-
-            $youtubeIFrameFunctions
-        </script>
-    </body>
-  ''';
+            <!DOCTYPE html>
+            <body>
+                 ${youtubeIFrameTag(controller)}
+                <script>
+                    $initPlayerIFrame
+                    var player;
+                    var timerId;
+                    function onYouTubeIframeAPIReady() {
+                        player = new YT.Player('player', {
+                            events: {
+                                onReady: function(event) { window.flutter_inappwebview.callHandler('Ready'); },
+                                onStateChange: function(event) { sendPlayerStateChange(event.data); },
+                                onPlaybackQualityChange: function(event) { window.flutter_inappwebview.callHandler('PlaybackQualityChange', event.data); },
+                                onPlaybackRateChange: function(event) { window.flutter_inappwebview.callHandler('PlaybackRateChange', event.data); },
+                                onError: function(error) { window.flutter_inappwebview.callHandler('Errors', error.data); }
+                            },
+                        });
+                    }
+        
+                    function sendPlayerStateChange(playerState) {
+                        clearTimeout(timerId);
+                        window.flutter_inappwebview.callHandler('StateChange', playerState);
+                        if (playerState == 1) {
+                            startSendCurrentTimeInterval();
+                            sendVideoData(player);
+                        }
+                    }
+        
+                    function sendVideoData(player) {
+                        var videoData = {
+                            'duration': player.getDuration(),
+                            'title': player.getVideoData().title,
+                            'author': player.getVideoData().author,
+                            'videoId': player.getVideoData().video_id
+                        };
+                        window.flutter_inappwebview.callHandler('VideoData', videoData);
+                    }
+        
+                    function startSendCurrentTimeInterval() {
+                        timerId = setInterval(function () {
+                            window.flutter_inappwebview.callHandler('VideoTime', player.getCurrentTime(), player.getVideoLoadedFraction());
+                        }, 100);
+                    }
+        
+                    $youtubeIFrameFunctions
+                </script>
+            </body>
+          ''';
 
   String get userAgent => controller.params.desktopMode
       ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15'
