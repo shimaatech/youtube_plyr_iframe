@@ -4,6 +4,7 @@
 
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -126,7 +127,7 @@ class _MobileYoutubePlayerState extends State<RawYoutubePlayer>
             supportZoom: false,
             disableHorizontalScroll: false,
             disableVerticalScroll: false,
-            useShouldOverrideUrlLoading: true,
+            useShouldOverrideUrlLoading: Platform.isAndroid,
           ),
           ios: IOSInAppWebViewOptions(
             allowsInlineMediaPlayback: true,
